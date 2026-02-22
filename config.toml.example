@@ -1,0 +1,7 @@
+[database]
+# PostgreSQL connection URL
+url = "postgres://screenpipe:screenpipe@localhost:5432/screenpipe"
+
+[capture]
+# Seconds between screen captures (supports fractional values, e.g. 0.5 = 500ms)
+interval_secs = 5.0
