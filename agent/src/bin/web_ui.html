@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cortex Query</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* Header */
+header{background:#161b22;border-bottom:1px solid #30363d;padding:14px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+header h1{font-size:17px;color:#58a6ff;font-weight:600;letter-spacing:-.3px}
+header .sub{color:#8b949e;font-size:13px}
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{background:#21262d;border:1px solid #30363d;border-radius:20px;padding:3px 10px;font-size:11px;color:#8b949e}
+.pill.green{border-color:#238636;color:#3fb950}
+
+/* Layout */
+.layout{display:flex;flex:1;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.sidebar{width:260px;background:#161b22;border-left:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+
+/* Query area */
+.query-area{padding:20px 24px;border-bottom:1px solid #21262d;flex-shrink:0}
+.query-wrap{background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden;transition:border-color .15s}
+.query-wrap:focus-within{border-color:#58a6ff}
+textarea{width:100%;background:transparent;border:none;outline:none;color:#e6edf3;font-size:15px;resize:none;font-family:inherit;line-height:1.6;padding:14px 16px;display:block}
+.query-footer{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px solid #21262d}
+.examples{display:flex;gap:6px;flex-wrap:wrap}
+.ex{background:none;border:1px solid #30363d;color:#8b949e;padding:3px 9px;border-radius:20px;cursor:pointer;font-size:11.5px;transition:all .15s}
+.ex:hover{border-color:#58a6ff;color:#58a6ff}
+.ask-btn{background:#1f6feb;color:white;border:none;padding:7px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;transition:background .15s}
+.ask-btn:hover{background:#388bfd}
+.ask-btn:disabled{background:#21262d;color:#8b949e;cursor:not-allowed}
+.ask-btn .spinner{width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.ask-btn.loading .spinner{display:block}
+.ask-btn.loading .label{display:none}
+
+/* Results area */
+.results{flex:1;overflow-y:auto;padding:20px 24px}
+
+/* Status */
+.status{display:flex;align-items:center;gap:10px;color:#8b949e;font-size:13px;padding:12px 0}
+.dot-spin{display:flex;gap:4px}
+.dot-spin span{width:6px;height:6px;background:#58a6ff;border-radius:50%;animation:bounce 1.2s infinite}
+.dot-spin span:nth-child(2){animation-delay:.2s}
+.dot-spin span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* Answer */
+.answer-card{background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden}
+.answer-header{padding:12px 16px;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:8px;background:#1c2128}
+.answer-header .icon{color:#58a6ff}
+.answer-header .title{font-size:13px;font-weight:600;color:#c9d1d9}
+.answer-header .meta{margin-left:auto;font-size:11px;color:#8b949e}
+.answer-body{padding:16px;font-size:14px;line-height:1.75;white-space:pre-wrap;color:#e6edf3}
+.sql-toggle-btn{background:none;border:none;color:#8b949e;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;padding:10px 16px;width:100%;border-top:1px solid #21262d;transition:color .15s}
+.sql-toggle-btn:hover{color:#c9d1d9;background:#1c2128}
+.sql-block{display:none;border-top:1px solid #21262d}
+.sql-block.open{display:block}
+.sql-block pre{background:#0d1117;border-bottom:1px solid #21262d;padding:12px 16px;font-size:12px;overflow-x:auto;color:#e6edf3;font-family:"SF Mono","Fira Code",monospace;line-height:1.5}
+.sql-block pre:last-child{border-bottom:none}
+
+/* Error */
+.error-card{background:#21262d;border:1px solid #da3633;border-radius:10px;padding:16px;color:#f85149;font-size:13px}
+
+/* Empty state */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:#8b949e;text-align:center}
+.empty .big{font-size:40px}
+.empty p{font-size:14px;max-width:300px;line-height:1.6}
+
+/* Sidebar */
+.sidebar-section{padding:14px 16px;border-bottom:1px solid #21262d;flex-shrink:0}
+.sidebar-section h2{font-size:11px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}
+.stat-row .lbl{color:#8b949e}
+.stat-row .val{color:#e6edf3;font-weight:500;font-variant-numeric:tabular-nums}
+.entities{flex:1;overflow-y:auto;padding:0 0 8px}
+.entity-item{display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid #21262d;font-size:12px;overflow:hidden}
+.entity-item:hover{background:#1c2128}
+.etype{background:#1f4068;color:#58a6ff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:500;white-space:nowrap;flex-shrink:0;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+.evalue{color:#c9d1d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ecount{color:#8b949e;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#484f58}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+    <circle cx="11" cy="11" r="10" stroke="#58a6ff" stroke-width="1.5"/>
+    <circle cx="11" cy="11" r="5" stroke="#58a6ff" stroke-width="1.5"/>
+    <circle cx="11" cy="11" r="2" fill="#58a6ff"/>
+  </svg>
+  <h1>Cortex</h1>
+  <span class="sub">Query your screen activity with natural language</span>
+  <div class="header-right">
+    <span class="pill green" id="ollamaStatus">● Ollama</span>
+    <span class="pill" id="frameCount">— frames</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <div class="main">
+    <div class="query-area">
+      <div class="query-wrap">
+        <textarea id="q" rows="3" placeholder="What was I working on this morning?&#10;What errors did I encounter recently?&#10;Which files did I edit?"></textarea>
+        <div class="query-footer">
+          <div class="examples">
+            <button class="ex" onclick="setQ('What did I work on today?')">Today's work</button>
+            <button class="ex" onclick="setQ('What errors or bugs did I encounter?')">Recent errors</button>
+            <button class="ex" onclick="setQ('What commands did I run in the terminal?')">Commands</button>
+            <button class="ex" onclick="setQ('What websites did I visit?')">Browsing history</button>
+          </div>
+          <button class="ask-btn" id="askBtn" onclick="ask()">
+            <div class="spinner"></div>
+            <span class="label">Ask  ⌘↵</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="results" id="results">
+      <div class="empty">
+        <div class="big">🔍</div>
+        <p>Ask anything about your screen activity. Cortex will search your knowledge graph and synthesize an answer.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <h2>Knowledge Graph</h2>
+      <div id="statsContent">
+        <div class="stat-row"><span class="lbl">Loading…</span></div>
+      </div>
+    </div>
+    <div class="sidebar-section" style="padding-bottom:0;border-bottom:none">
+      <h2>Top Entities</h2>
+    </div>
+    <div class="entities" id="entitiesContent"></div>
+  </div>
+
+</div>
+
+<script>
+function setQ(q) {
+  document.getElementById('q').value = q;
+  document.getElementById('q').focus();
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+async function ask() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+
+  const btn = document.getElementById('askBtn');
+  const results = document.getElementById('results');
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  const t0 = Date.now();
+
+  results.innerHTML = `
+    <div class="status">
+      <div class="dot-spin"><span></span><span></span><span></span></div>
+      <span id="statusTxt">Generating SQL queries…</span>
+    </div>`;
+
+  // Swap status text after 3s
+  setTimeout(() => {
+    const el = document.getElementById('statusTxt');
+    if (el) el.textContent = 'Running queries & synthesizing answer…';
+  }, 3000);
+
+  try {
+    const r = await fetch('/api/query', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: q})
+    });
+
+    if (!r.ok) {
+      const err = await r.text();
+      results.innerHTML = `<div class="error-card">⚠ ${esc(err)}</div>`;
+      return;
+    }
+
+    const d = await r.json();
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    const sqlHtml = (d.sql_queries || []).map((s, i) =>
+      `<pre>-- Query ${i+1}\n${esc(s)}</pre>`
+    ).join('');
+
+    results.innerHTML = `
+      <div class="answer-card">
+        <div class="answer-header">
+          <span class="icon">✦</span>
+          <span class="title">Answer</span>
+          <span class="meta">${esc(elapsed)}s · ${d.result_count} rows · ${(d.sql_queries||[]).length} queries</span>
+        </div>
+        <div class="answer-body">${esc(d.answer)}</div>
+        ${sqlHtml ? `
+        <button class="sql-toggle-btn" onclick="toggleSql(this)">
+          ▶ Show SQL queries
+        </button>
+        <div class="sql-block">${sqlHtml}</div>` : ''}
+      </div>`;
+  } catch(e) {
+    results.innerHTML = `<div class="error-card">⚠ Request failed: ${esc(e.message)}</div>`;
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function toggleSql(btn) {
+  const block = btn.nextElementSibling;
+  const open = block.classList.toggle('open');
+  btn.textContent = (open ? '▼' : '▶') + ' Show SQL queries';
+}
+
+document.getElementById('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask();
+});
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    if (!r.ok) return;
+    const d = await r.json();
+
+    document.getElementById('frameCount').textContent = `${d.total_frames.toLocaleString()} frames`;
+    document.getElementById('statsContent').innerHTML = [
+      {l: 'Nodes',   v: d.total_nodes.toLocaleString()},
+      {l: 'Edges',   v: d.total_edges.toLocaleString()},
+      {l: 'Frames',  v: d.total_frames.toLocaleString()},
+      {l: 'Sessions',v: d.total_sessions.toLocaleString()},
+    ].map(s => `<div class="stat-row"><span class="lbl">${s.l}</span><span class="val">${s.v}</span></div>`).join('');
+
+    document.getElementById('entitiesContent').innerHTML = (d.top_entities || []).map(e => `
+      <div class="entity-item">
+        <span class="etype" title="${esc(e.node_type)}">${esc(e.node_type)}</span>
+        <span class="evalue" title="${esc(e.value)}">${esc(e.value.length > 30 ? e.value.slice(0,30)+'…' : e.value)}</span>
+        <span class="ecount">${e.count}</span>
+      </div>`).join('');
+  } catch(e) { console.error('stats:', e); }
+}
+
+loadStats();
+setInterval(loadStats, 15000);
+</script>
+</body>
+</html>

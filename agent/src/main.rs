@@ -2,12 +2,15 @@ mod app_metadata;
 mod capture;
 mod config;
 mod db;
+mod extract;
 mod ocr;
 mod window_info;
 
 use anyhow::{Context, Result};
 use chrono::Utc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::Semaphore;
 use tracing::{error, info, warn};
 
 #[tokio::main]
@@ -30,6 +33,7 @@ async fn main() -> Result<()> {
 
     info!("Connecting to database...");
     let pool = db::connect(&cfg.database.url).await?;
+    let pool = Arc::new(pool);
     info!("Database connected.");
 
     // Pre-warm Vision: loads language correction model once so first real
@@ -37,6 +41,46 @@ async fn main() -> Result<()> {
     info!("Pre-warming Vision OCR model...");
     tokio::task::spawn_blocking(ocr::prewarm).await?;
     info!("Vision OCR model ready.");
+
+    // Semaphore: max 2 concurrent Ollama NER calls (local inference, no rate limit concern).
+    // Cap at 2 so we don't queue up too many frames while inference is running.
+    let llm_sem = Arc::new(Semaphore::new(2));
+
+    // ── Background: assign frames into sessions every 5 minutes ──────────────
+    {
+        let pool = Arc::clone(&pool);
+        let gap = chrono::Duration::minutes(cfg.kg.session_gap_mins as i64);
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(Duration::from_secs(5 * 60));
+            ticker.tick().await; // skip immediate first tick
+            loop {
+                ticker.tick().await;
+                match db::assign_sessions(&pool, gap).await {
+                    Ok(n) if n > 0 => info!(frames_assigned = n, "Sessions updated"),
+                    Ok(_) => {}
+                    Err(e) => warn!("assign_sessions failed: {e:#}"),
+                }
+            }
+        });
+    }
+
+    // ── Background: expire raw OCR text every hour ────────────────────────────
+    {
+        let pool = Arc::clone(&pool);
+        let ttl = chrono::Duration::days(cfg.kg.ocr_ttl_days as i64);
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(Duration::from_secs(60 * 60));
+            ticker.tick().await; // skip immediate first tick
+            loop {
+                ticker.tick().await;
+                match db::expire_ocr_text(&pool, ttl).await {
+                    Ok(n) if n > 0 => info!(rows_expired = n, "OCR text expired"),
+                    Ok(_) => {}
+                    Err(e) => warn!("expire_ocr_text failed: {e:#}"),
+                }
+            }
+        });
+    }
 
     let interval = Duration::from_secs_f64(cfg.capture.interval_secs);
     info!(
@@ -99,7 +143,7 @@ async fn main() -> Result<()> {
                 all_empty = false;
             }
 
-            match db::insert_frame(
+            let frame_id = match db::insert_frame(
                 &pool,
                 captured_at,
                 &app,
@@ -110,15 +154,61 @@ async fn main() -> Result<()> {
             )
             .await
             {
-                Ok(true) => info!(
-                    monitor_id,
-                    app = %app,
-                    meta = %metadata,
-                    ocr_len = ocr_text.len(),
-                    "Frame inserted"
-                ),
-                Ok(false) => info!(monitor_id, "Frame deduplicated (no change)"),
-                Err(e) => error!(monitor_id, "DB insert failed: {e:#}"),
+                Ok(Some(id)) => {
+                    info!(
+                        monitor_id,
+                        app = %app,
+                        meta = %metadata,
+                        ocr_len = ocr_text.len(),
+                        "Frame inserted"
+                    );
+                    id
+                }
+                Ok(None) => {
+                    info!(monitor_id, "Frame deduplicated (no change)");
+                    continue;
+                }
+                Err(e) => {
+                    error!(monitor_id, "DB insert failed: {e:#}");
+                    continue;
+                }
+            };
+
+            // ── Rule-based metadata extraction (synchronous, always runs) ──────
+            let meta_edges = extract::from_metadata(&app, &metadata);
+            if !meta_edges.is_empty() {
+                let pool2 = Arc::clone(&pool);
+                tokio::spawn(async move {
+                    if let Err(e) = db::upsert_kg(&pool2, frame_id, &meta_edges).await {
+                        warn!("upsert_kg (metadata) failed: {e:#}");
+                    }
+                });
+            }
+
+            // ── LLM NER via Ollama (async, sampled, non-fatal) ────────────────
+            let ollama_endpoint = cfg.kg.ollama_endpoint.clone();
+            let ollama_model = cfg.kg.ollama_model.clone();
+            let sample_rate = cfg.kg.llm_sample_rate;
+            if !ollama_endpoint.is_empty()
+                && !ocr_text.trim().is_empty()
+                && rand::random::<f64>() < sample_rate
+            {
+                let pool2 = Arc::clone(&pool);
+                let sem = Arc::clone(&llm_sem);
+                let app2 = app.clone();
+                let title2 = title.clone();
+                let ocr2 = ocr_text.clone();
+                tokio::spawn(async move {
+                    let _permit = sem.acquire().await;
+                    let edges = extract::from_ocr_llm(
+                        &app2, &title2, &ocr2, &ollama_endpoint, &ollama_model,
+                    ).await;
+                    if !edges.is_empty() {
+                        if let Err(e) = db::upsert_kg(&pool2, frame_id, &edges).await {
+                            warn!("upsert_kg (LLM) failed: {e:#}");
+                        }
+                    }
+                });
             }
         }
 
