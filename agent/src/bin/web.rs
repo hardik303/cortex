@@ -1,6 +1,6 @@
-/// screenpipe-web — hosted query UI for the Cortex knowledge graph.
+/// cortex-web — hosted query UI for the Cortex knowledge graph.
 ///
-/// Usage:  screenpipe-web [config.toml] [port]
+/// Usage:  cortex-web [config.toml] [port]
 /// Default port: 3000
 ///
 /// Routes:
@@ -140,7 +140,7 @@ You spent most of the week building **Cortex** — a personal AI activity intell
 
 ### 🌐 Dashboards & Visualization
 - Set up **Apache Superset 6.0** with 8 custom charts: entity-type pie, Sankey relation flow, stacked-bar timeseries, top-entities table, sessions table.
-- Dashboard visited **68 times** iterating on chart configs (`localhost:8088/superset/dashboard/screenpipe-kg`).
+- Dashboard visited **68 times** iterating on chart configs (`localhost:8088/superset/dashboard/cortex-kg`).
 - Switched Sankey dataset SQL after discovering `sankey_v2` needs `source / target / value` columns.
 
 ---
@@ -150,7 +150,7 @@ You spent most of the week building **Cortex** — a personal AI activity intell
 |---|---|---|
 | `config.toml not found` | 19 | Fixed config path resolution |
 | Gemini API 429 rate-limit | multiple | Switched to local Ollama DeepSeek-R1:7b |
-| `error Compiling screenpipe Finished` | 14 | Iterative build cycle — expected |
+| `error Compiling cortex Finished` | 14 | Iterative build cycle — expected |
 | `xcap` blank frames | 1 | Granted Screen Recording permission |
 
 ---

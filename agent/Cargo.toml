@@ -1,10 +1,10 @@
 [package]
-name = "screenpipe-agent"
+name = "cortex-agent"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "screenpipe-agent"
+name = "cortex-agent"
 path = "src/main.rs"
 
 [[bin]]

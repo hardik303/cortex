@@ -1,169 +1,55 @@
 # Cortex
 
-> **Your AI memory for everything you do on your computer.**
-> Ask anything about past sessions, decisions, errors, and fixes — and get a full answer with sources.
+Your computer has seen everything you've ever worked on. Cortex makes it searchable.
 
-<video src="demo/cortex_postgres_demo.mp4" width="100%" controls autoplay muted loop></video>
+It runs silently in the background, builds a knowledge graph of your activity, and lets you ask questions in plain English — getting back specific, sourced answers from your own history.
 
-*Demo: "How did I solve the issue of scaling Postgres last time?" — Cortex surfaces the exact session, failed attempts, final fix, and the config that worked.*
+<br/>
 
----
+![Cortex Demo](demo/cortex_demo.gif)
 
-## What it does
+*"How did I solve the issue of scaling Postgres last time?" — Cortex surfaces the exact session: what failed, what worked, and the config that fixed it.*
 
-Cortex runs silently in the background, capturing your screen every few seconds. It extracts structured knowledge from everything you see — commands run, URLs visited, errors hit, files edited, decisions made — and builds a **local Knowledge Graph** on your machine.
+<br/>
 
-Later, you ask a question in plain English. Cortex searches that graph and returns a specific, sourced answer — not a summary of your entire history, but the exact session where you solved that problem.
-
-```
-"How did I fix that Postgres scaling issue?"
-"What decisions did we make about the API design last Tuesday?"
-"Which npm package did I use to solve the auth problem?"
-```
-
----
-
-## How it works
+## What you can ask
 
 ```
-macOS screen  →  Apple Vision OCR  →  Structured metadata
-                                          │
-                               ┌──────────┴──────────┐
-                               │   Knowledge Graph    │
-                               │  (Nodes + Edges)     │
-                               │                      │
-                               │  COMMAND ──RAN──▶    │
-                               │  URL ──VISITED──▶    │
-                               │  FILE ──EDITED──▶    │
-                               │  DECISION ──BY──▶    │
-                               └──────────┬──────────┘
-                                          │
-                               DeepSeek-R1 NER (local)
-                                          │
-                                          ▼
-                               Natural language query
-                               (Cortex Web UI · :3000)
+"How did I solve the issue of scaling Postgres last time?"
+"What was the API design decision we made in January?"
+"Which library did I use to fix the auth bug?"
+"What errors keep showing up in the build pipeline?"
 ```
 
-**Everything runs locally.** No data leaves your machine. OCR, NER, and query synthesis all run on-device via [Ollama](https://ollama.com).
+## Features
 
----
+- **Fully local** — screen capture, OCR, and AI inference all run on your machine. Nothing leaves.
+- **Knowledge Graph** — entities (commands, URLs, errors, files, decisions) extracted and linked across sessions
+- **Temporal memory** — knows *when* something happened and can trace sessions across days
+- **Natural language query** — ask in plain English, get a sourced answer with citations
+- **OCR TTL** — raw screen text expires automatically; structured knowledge is permanent
 
 ## Stack
 
-| Layer | Technology |
+| | |
 |---|---|
-| Screen capture | Rust + [xcap](https://github.com/nashaofu/xcap) |
-| OCR | Apple Vision framework (ObjC FFI) |
-| App metadata | ObjC — CGWindowList, NSAppleScript, libproc |
-| NER / entity extraction | DeepSeek-R1:7b via Ollama (local) |
-| Storage | PostgreSQL 16 + JSONB |
-| Knowledge Graph | Custom schema — `kg_nodes`, `kg_edges`, `kg_sessions` |
-| Query UI | Rust (Axum 0.7) web server at `:3000` |
-| Dashboard | Apache Superset 6 |
+| Capture | Rust + xcap |
+| OCR | Apple Vision (on-device) |
+| NER | DeepSeek-R1:7b via Ollama |
+| Storage | PostgreSQL 16 |
+| Query UI | Axum web server |
 
----
-
-## Project structure
-
-```
-cortex/
-├── agent/
-│   ├── src/
-│   │   ├── main.rs          # Async capture loop (tokio)
-│   │   ├── capture.rs       # Screen capture, RGBA→BGRA
-│   │   ├── ocr.rs           # Apple Vision OCR (FFI)
-│   │   ├── extract.rs       # Rule-based + LLM NER → KG edges
-│   │   ├── db.rs            # sqlx, SHA-256 dedup, KG upsert
-│   │   ├── config.rs        # TOML config (capture, db, kg)
-│   │   └── bin/
-│   │       ├── web.rs       # Cortex Web UI (Axum server)
-│   │       └── query.rs     # cortex-query CLI
-│   └── src-objc/
-│       ├── ocr_wrapper.m    # Vision OCR + reading-order sort
-│       ├── window_info.m    # Per-monitor frontmost window
-│       └── app_metadata.m   # Browser URLs + terminal cwd/cmd
-├── database/
-│   ├── init.sql             # Base schema + FTS + trgm indexes
-│   └── migrate_001_kg.sql   # KG schema migration
-├── demo/
-│   └── cortex_postgres_demo.mp4
-├── Makefile
-└── config.toml.example
-```
-
----
-
-## Quick start
-
-### Prerequisites
-
-- macOS (Apple Silicon or Intel)
-- Rust — [rustup.rs](https://rustup.rs)
-- PostgreSQL 16 — `brew install postgresql@16`
-- Ollama — [ollama.com](https://ollama.com) with `ollama pull deepseek-r1:7b`
-- **Screen Recording permission** — System Settings → Privacy & Security → Screen Recording
-
-### Run
+## Quickstart
 
 ```bash
-# 1. Start Postgres and create the schema
-make setup
+# Prerequisites: Rust, PostgreSQL 16, Ollama (ollama pull deepseek-r1:7b)
+# Grant Screen Recording in System Settings → Privacy & Security
 
-# 2. Configure
+make setup          # create database schema
 cp config.toml.example config.toml
-# set your database URL and Ollama endpoint
-
-# 3. Start the capture agent
-make run
-
-# 4. Open the query UI
-make web
-# → http://localhost:3000
+make run            # start capture agent
+make web            # open query UI at localhost:3000
 ```
-
-### Query from the CLI
-
-```bash
-./agent/target/release/cortex-query config.toml \
-  "how did I fix the postgres connection issue?"
-```
-
----
-
-## Knowledge Graph schema
-
-```sql
--- Permanent entity nodes (survive OCR TTL)
-kg_nodes  (id, node_type TEXT, value TEXT)
-  -- node_type: COMMAND, URL, FILE, ERROR_MSG,
-  --            TECHNOLOGY, CONCEPT, PROJECT, PERSON, DECISION
-
--- Edges connect frames → entities
-kg_edges  (id, frame_id, relation TEXT, dst_node_id)
-  -- relation: RAN, VISITED, WORKING_IN, CONTAINS_ENTITY,
-  --           BELONGS_TO_DOMAIN
-
--- Gap-based session grouping
-kg_sessions (id, started_at, ended_at, frame_count)
-```
-
-Entity extraction runs in two passes:
-1. **Rule-based** — structured metadata → `RAN`, `VISITED`, `WORKING_IN` edges (synchronous, always runs)
-2. **DeepSeek-R1 NER** — OCR text → `CONTAINS_ENTITY` edges for semantic entities like errors, decisions, concepts (async, local Ollama)
-
----
-
-## Cortex Web UI
-
-Natural language query interface at `http://localhost:3000`.
-
-- Type any question about your past sessions
-- Cortex queries the KG, executes SQL, and synthesises an answer
-- Shows source citations (which sessions the answer came from)
-- All inference runs locally — no API keys needed
-
----
 
 ## License
 

@@ -1,5 +1,5 @@
 -- Migration 001: Temporal Knowledge Graph + OCR TTL
--- Apply with:  psql -U screenpipe -d screenpipe -f database/migrate_001_kg.sql
+-- Apply with:  psql -U cortex -d cortex -f database/migrate_001_kg.sql
 
 -- 1. Make ocr_text nullable (required for TTL expiry)
 ALTER TABLE frames ALTER COLUMN ocr_text DROP NOT NULL;
