@@ -505,6 +505,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "cortex-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "cc",
+ "chrono",
+ "hex",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "tokio",
+ "toml 1.0.3+spec-1.1.0",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+ "xcap",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2628,29 +2651,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "screenpipe-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "cc",
- "chrono",
- "hex",
- "rand 0.8.5",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "tokio",
- "toml 1.0.3+spec-1.1.0",
- "tower-http 0.5.2",
- "tracing",
- "tracing-subscriber",
- "xcap",
-]
 
 [[package]]
 name = "security-framework"

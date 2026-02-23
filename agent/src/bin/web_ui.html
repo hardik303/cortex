@@ -3,266 +3,666 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cortex Query</title>
+<title>Cortex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
 
-/* Header */
-header{background:#161b22;border-bottom:1px solid #30363d;padding:14px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
-header h1{font-size:17px;color:#58a6ff;font-weight:600;letter-spacing:-.3px}
-header .sub{color:#8b949e;font-size:13px}
-.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
-.pill{background:#21262d;border:1px solid #30363d;border-radius:20px;padding:3px 10px;font-size:11px;color:#8b949e}
-.pill.green{border-color:#238636;color:#3fb950}
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #08090e;
+  --panel:     #0c0e18;
+  --card:      #10121e;
+  --card2:     #14172a;
+  --border:    #1a1d30;
+  --border2:   #252840;
 
-/* Layout */
-.layout{display:flex;flex:1;overflow:hidden}
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.sidebar{width:260px;background:#161b22;border-left:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+  --indigo:    #6366f1;
+  --indigo-lt: #818cf8;
+  --violet:    #a78bfa;
+  --cyan:      #22d3ee;
+  --emerald:   #34d399;
+  --amber:     #fbbf24;
+  --rose:      #fb7185;
 
-/* Query area */
-.query-area{padding:20px 24px;border-bottom:1px solid #21262d;flex-shrink:0}
-.query-wrap{background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden;transition:border-color .15s}
-.query-wrap:focus-within{border-color:#58a6ff}
-textarea{width:100%;background:transparent;border:none;outline:none;color:#e6edf3;font-size:15px;resize:none;font-family:inherit;line-height:1.6;padding:14px 16px;display:block}
-.query-footer{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px solid #21262d}
-.examples{display:flex;gap:6px;flex-wrap:wrap}
-.ex{background:none;border:1px solid #30363d;color:#8b949e;padding:3px 9px;border-radius:20px;cursor:pointer;font-size:11.5px;transition:all .15s}
-.ex:hover{border-color:#58a6ff;color:#58a6ff}
-.ask-btn{background:#1f6feb;color:white;border:none;padding:7px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;transition:background .15s}
-.ask-btn:hover{background:#388bfd}
-.ask-btn:disabled{background:#21262d;color:#8b949e;cursor:not-allowed}
-.ask-btn .spinner{width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:none}
-.ask-btn.loading .spinner{display:block}
-.ask-btn.loading .label{display:none}
+  --t1: #e8eaf2;
+  --t2: #9199b3;
+  --t3: #555e7a;
+  --t4: #2e3350;
 
-/* Results area */
-.results{flex:1;overflow-y:auto;padding:20px 24px}
+  --font: 'Inter', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --r:    10px;
+}
 
-/* Status */
-.status{display:flex;align-items:center;gap:10px;color:#8b949e;font-size:13px;padding:12px 0}
-.dot-spin{display:flex;gap:4px}
-.dot-spin span{width:6px;height:6px;background:#58a6ff;border-radius:50%;animation:bounce 1.2s infinite}
-.dot-spin span:nth-child(2){animation-delay:.2s}
-.dot-spin span:nth-child(3){animation-delay:.4s}
-@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+/* ── Base ───────────────────────────────────────────────────────────────── */
+body {
+  background: var(--bg);
+  color: var(--t1);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
 
-/* Answer */
-.answer-card{background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden}
-.answer-header{padding:12px 16px;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:8px;background:#1c2128}
-.answer-header .icon{color:#58a6ff}
-.answer-header .title{font-size:13px;font-weight:600;color:#c9d1d9}
-.answer-header .meta{margin-left:auto;font-size:11px;color:#8b949e}
-.answer-body{padding:16px;font-size:14px;line-height:1.75;white-space:pre-wrap;color:#e6edf3}
-.sql-toggle-btn{background:none;border:none;color:#8b949e;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;padding:10px 16px;width:100%;border-top:1px solid #21262d;transition:color .15s}
-.sql-toggle-btn:hover{color:#c9d1d9;background:#1c2128}
-.sql-block{display:none;border-top:1px solid #21262d}
-.sql-block.open{display:block}
-.sql-block pre{background:#0d1117;border-bottom:1px solid #21262d;padding:12px 16px;font-size:12px;overflow-x:auto;color:#e6edf3;font-family:"SF Mono","Fira Code",monospace;line-height:1.5}
-.sql-block pre:last-child{border-bottom:none}
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+aside {
+  width: 268px;
+  flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-/* Error */
-.error-card{background:#21262d;border:1px solid #da3633;border-radius:10px;padding:16px;color:#f85149;font-size:13px}
+.logo {
+  padding: 22px 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--indigo), var(--violet));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.logo-text { font-size: 16px; font-weight: 600; color: var(--t1); }
+.logo-sub  { font-size: 11px; color: var(--t3); margin-top: 1px; }
 
-/* Empty state */
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:#8b949e;text-align:center}
-.empty .big{font-size:40px}
-.empty p{font-size:14px;max-width:300px;line-height:1.6}
+.sb-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.sb-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--t4); margin-bottom: 10px;
+}
 
-/* Sidebar */
-.sidebar-section{padding:14px 16px;border-bottom:1px solid #21262d;flex-shrink:0}
-.sidebar-section h2{font-size:11px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
-.stat-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}
-.stat-row .lbl{color:#8b949e}
-.stat-row .val{color:#e6edf3;font-weight:500;font-variant-numeric:tabular-nums}
-.entities{flex:1;overflow-y:auto;padding:0 0 8px}
-.entity-item{display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid #21262d;font-size:12px;overflow:hidden}
-.entity-item:hover{background:#1c2128}
-.etype{background:#1f4068;color:#58a6ff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:500;white-space:nowrap;flex-shrink:0;max-width:80px;overflow:hidden;text-overflow:ellipsis}
-.evalue{color:#c9d1d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.ecount{color:#8b949e;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* Stat rows */
+.stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; font-size: 13px;
+}
+.stat-row .lbl { color: var(--t2); }
+.stat-row .val { color: var(--t1); font-weight: 500; font-variant-numeric: tabular-nums; }
+.stat-bar {
+  height: 3px; background: var(--border2); border-radius: 2px;
+  margin-top: 2px; overflow: hidden;
+}
+.stat-bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
 
-/* Scrollbar */
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:#484f58}
+/* Recent queries */
+.sb-queries { flex: 1; overflow-y: auto; padding: 8px 12px; }
+.sq-item {
+  padding: 9px 10px; border-radius: 8px; cursor: pointer;
+  font-size: 12.5px; color: var(--t2); margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background .12s, color .12s;
+}
+.sq-item:hover { background: var(--card2); color: var(--t1); }
+.sq-item.active { background: color-mix(in srgb, var(--indigo) 12%, transparent); color: var(--indigo-lt); }
 
-@keyframes spin{to{transform:rotate(360deg)}}
+/* Top entities */
+.entity-list { padding: 0 12px 12px; }
+.entity-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; border-radius: 7px; font-size: 12px;
+  transition: background .12s;
+}
+.entity-row:hover { background: var(--card2); }
+.etag {
+  font-size: 10px; font-weight: 500; padding: 2px 6px;
+  border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+}
+.eval { color: var(--t1); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ecnt { color: var(--t3); font-variant-numeric: tabular-nums; font-size: 11px; }
+
+/* ── Main ───────────────────────────────────────────────────────────────── */
+main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;
+}
+
+/* ── Idle view ──────────────────────────────────────────────────────────── */
+#idle-view {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 48px; gap: 0;
+}
+.idle-hero { text-align: center; margin-bottom: 32px; }
+.idle-hero h1 {
+  font-size: 28px; font-weight: 600; color: var(--t1);
+  letter-spacing: -.3px; margin-bottom: 8px;
+}
+.idle-hero p { font-size: 15px; color: var(--t2); }
+
+.query-wrap {
+  width: 100%; max-width: 740px;
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: 14px; overflow: hidden;
+  transition: border-color .15s, box-shadow .15s;
+}
+.query-wrap:focus-within {
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo) 14%, transparent);
+}
+#q {
+  width: 100%; background: transparent; border: none; outline: none;
+  color: var(--t1); font-size: 15px; font-family: var(--font);
+  line-height: 1.6; resize: none; padding: 18px 20px;
+  display: block; min-height: 72px;
+}
+#q::placeholder { color: var(--t3); }
+
+.query-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px 12px; border-top: 1px solid var(--border);
+}
+.chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.chip {
+  background: transparent; border: 1px solid var(--border2);
+  color: var(--t2); padding: 4px 11px; border-radius: 20px;
+  cursor: pointer; font-size: 12px; font-family: var(--font);
+  transition: border-color .12s, color .12s, background .12s;
+}
+.chip:hover { border-color: var(--indigo); color: var(--indigo-lt); background: color-mix(in srgb, var(--indigo) 8%, transparent); }
+
+.ask-btn {
+  background: var(--indigo); color: #fff; border: none;
+  padding: 8px 20px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 500; font-family: var(--font);
+  display: flex; align-items: center; gap: 7px;
+  transition: background .15s, opacity .15s; white-space: nowrap;
+}
+.ask-btn:hover { background: var(--indigo-lt); }
+.ask-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Spinner arc */
+.arc-spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.2);
+  border-top-color: #fff;
+  animation: spin .7s linear infinite;
+  display: none;
+}
+.loading .arc-spinner { display: block; }
+.loading .btn-label   { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Active view ────────────────────────────────────────────────────────── */
+#active-view {
+  flex: 1; display: none; flex-direction: column; overflow: hidden;
+}
+#active-view.visible { display: flex; }
+
+.topbar {
+  padding: 14px 28px; border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.back-btn {
+  background: none; border: none; color: var(--t3); cursor: pointer;
+  font-size: 13px; font-family: var(--font); padding: 4px 8px;
+  border-radius: 6px; transition: color .12s, background .12s;
+  display: flex; align-items: center; gap: 5px;
+}
+.back-btn:hover { color: var(--t1); background: var(--card2); }
+.topbar-q { font-size: 13px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-q strong { color: var(--t1); }
+
+.answer-scroll { flex: 1; overflow-y: auto; padding: 28px; }
+
+/* ── Answer card ────────────────────────────────────────────────────────── */
+.answer-card {
+  max-width: 800px; margin: 0 auto;
+  animation: fadeUp .35s ease;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Meta row */
+.answer-meta {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+}
+.meta-chip {
+  font-size: 11px; padding: 3px 9px; border-radius: 20px;
+  border: 1px solid var(--border2); color: var(--t3);
+}
+.meta-chip.accent { border-color: color-mix(in srgb, var(--indigo) 40%, transparent); color: var(--indigo-lt); }
+
+/* Sources row */
+.sources-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.source-label { font-size: 11px; color: var(--t3); }
+.source-pill {
+  font-size: 11px; padding: 3px 10px; border-radius: 20px;
+  border: 1px solid; display: flex; align-items: center; gap: 5px;
+  cursor: default;
+}
+
+/* Rendered markdown */
+.md-body { color: var(--t1); line-height: 1.75; font-size: 14.5px; }
+.md-body h1, .md-body h2, .md-body h3 {
+  font-weight: 600; margin: 24px 0 10px; line-height: 1.3;
+}
+.md-body h1 { font-size: 20px; color: var(--t1); }
+.md-body h2 {
+  font-size: 15px; color: var(--t2);
+  display: flex; align-items: center; gap: 7px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.md-body h3 { font-size: 13.5px; color: var(--indigo-lt); }
+.md-body p  { margin-bottom: 12px; color: var(--t2); }
+.md-body p:last-child { margin-bottom: 0; }
+.md-body strong { color: var(--t1); font-weight: 600; }
+.md-body em { color: var(--violet); font-style: normal; }
+.md-body ul, .md-body ol { padding-left: 20px; margin-bottom: 14px; }
+.md-body li { color: var(--t2); margin-bottom: 5px; }
+.md-body li strong { color: var(--t1); }
+.md-body a  { color: var(--indigo-lt); text-decoration: none; }
+.md-body a:hover { text-decoration: underline; }
+.md-body hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* Inline code */
+.md-body :not(pre) > code {
+  background: var(--card2); border: 1px solid var(--border2);
+  color: var(--amber); font-family: var(--mono); font-size: 12.5px;
+  padding: 1px 6px; border-radius: 5px;
+}
+
+/* Code blocks */
+.md-body pre {
+  background: #080a14; border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; overflow-x: auto;
+  margin: 14px 0; position: relative;
+}
+.md-body pre code {
+  background: none; border: none; color: var(--emerald);
+  font-family: var(--mono); font-size: 13px; padding: 0;
+  border-radius: 0;
+}
+
+/* Tables */
+.md-body table {
+  width: 100%; border-collapse: collapse; margin: 14px 0;
+  font-size: 13.5px;
+}
+.md-body th {
+  text-align: left; padding: 9px 14px;
+  background: var(--card2); color: var(--t2);
+  font-weight: 500; font-size: 12px;
+  border: 1px solid var(--border);
+}
+.md-body td {
+  padding: 9px 14px; border: 1px solid var(--border);
+  color: var(--t2); vertical-align: top;
+}
+.md-body tr:nth-child(even) td { background: color-mix(in srgb, var(--card) 50%, transparent); }
+.md-body td code { color: var(--amber); }
+
+/* Blockquote → info box */
+.md-body blockquote {
+  border-left: 3px solid var(--indigo);
+  background: color-mix(in srgb, var(--indigo) 7%, transparent);
+  margin: 14px 0; padding: 12px 16px; border-radius: 0 8px 8px 0;
+}
+.md-body blockquote p { color: var(--t2); margin: 0; }
+
+/* SQL toggle */
+.sql-toggle {
+  margin-top: 20px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+.sql-toggle-btn {
+  width: 100%; background: none; border: none; color: var(--t3);
+  font-size: 12px; font-family: var(--font); cursor: pointer;
+  padding: 10px 16px; text-align: left; display: flex; align-items: center; gap: 6px;
+  transition: color .12s, background .12s;
+}
+.sql-toggle-btn:hover { color: var(--t1); background: var(--card2); }
+.sql-body { display: none; border-top: 1px solid var(--border); }
+.sql-body.open { display: block; }
+.sql-body pre {
+  background: #080a14; margin: 0;
+  padding: 14px 16px; font-family: var(--mono); font-size: 12px;
+  color: var(--t2); overflow-x: auto; border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+.sql-body pre:last-child { border-bottom: none; }
+
+/* ── Loading state ──────────────────────────────────────────────────────── */
+.loading-card {
+  max-width: 800px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; padding: 60px 0;
+}
+.ring-spinner {
+  width: 44px; height: 44px; position: relative;
+}
+.ring-spinner::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid var(--border2);
+}
+.ring-spinner::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: var(--indigo-lt);
+  animation: spin .8s linear infinite;
+}
+.loading-text { font-size: 14px; color: var(--t2); text-align: center; }
+.loading-sub  { font-size: 12px; color: var(--t3); text-align: center; }
+
+/* Node cloud animation */
+.node-cloud {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  max-width: 400px; margin-top: 4px;
+}
+.node-tag {
+  font-size: 11px; padding: 3px 9px; border-radius: 20px;
+  border: 1px solid; opacity: 0;
+  animation: popIn .4s ease forwards;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Error ──────────────────────────────────────────────────────────────── */
+.error-box {
+  max-width: 800px; margin: 0 auto;
+  background: color-mix(in srgb, var(--rose) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rose) 30%, transparent);
+  border-radius: 10px; padding: 16px 20px;
+  color: var(--rose); font-size: 13px;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3f5c; }
 </style>
 </head>
 <body>
 
-<header>
-  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-    <circle cx="11" cy="11" r="10" stroke="#58a6ff" stroke-width="1.5"/>
-    <circle cx="11" cy="11" r="5" stroke="#58a6ff" stroke-width="1.5"/>
-    <circle cx="11" cy="11" r="2" fill="#58a6ff"/>
-  </svg>
-  <h1>Cortex</h1>
-  <span class="sub">Query your screen activity with natural language</span>
-  <div class="header-right">
-    <span class="pill green" id="ollamaStatus">● Ollama</span>
-    <span class="pill" id="frameCount">— frames</span>
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+<aside>
+  <div class="logo">
+    <div class="logo-icon">◈</div>
+    <div>
+      <div class="logo-text">Cortex</div>
+      <div class="logo-sub">Memory Agent</div>
+    </div>
   </div>
-</header>
 
-<div class="layout">
+  <div class="sb-section">
+    <div class="sb-label">Knowledge Graph</div>
+    <div id="statsContent">
+      <div class="stat-row"><span class="lbl">Loading…</span></div>
+    </div>
+  </div>
 
-  <div class="main">
-    <div class="query-area">
-      <div class="query-wrap">
-        <textarea id="q" rows="3" placeholder="What was I working on this morning?&#10;What errors did I encounter recently?&#10;Which files did I edit?"></textarea>
-        <div class="query-footer">
-          <div class="examples">
-            <button class="ex" onclick="setQ('What did I work on today?')">Today's work</button>
-            <button class="ex" onclick="setQ('What errors or bugs did I encounter?')">Recent errors</button>
-            <button class="ex" onclick="setQ('What commands did I run in the terminal?')">Commands</button>
-            <button class="ex" onclick="setQ('What websites did I visit?')">Browsing history</button>
-          </div>
-          <button class="ask-btn" id="askBtn" onclick="ask()">
-            <div class="spinner"></div>
-            <span class="label">Ask  ⌘↵</span>
-          </button>
+  <div class="sb-section" style="padding-bottom:10px; border-bottom: none;">
+    <div class="sb-label">Top Entities</div>
+  </div>
+  <div class="entity-list" id="entitiesContent" style="overflow-y:auto; flex:1;"></div>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Idle -->
+  <div id="idle-view">
+    <div class="idle-hero">
+      <h1>Ask anything about your past work</h1>
+      <p>Cortex searches your memory graph and returns a sourced answer</p>
+    </div>
+
+    <div class="query-wrap" style="max-width:680px; width:100%;">
+      <textarea id="q" rows="3"
+        placeholder="How did I solve the Postgres scaling issue?&#10;What errors keep showing up in the build?&#10;Which library did I use for authentication?">
+      </textarea>
+      <div class="query-footer">
+        <div class="chips">
+          <button class="chip" onclick="setQ('What did I work on last week?')">Last week's work</button>
+          <button class="chip" onclick="setQ('What errors did I encounter?')">Recent errors</button>
+          <button class="chip" onclick="setQ('What commands did I run?')">Commands</button>
+          <button class="chip" onclick="setQ('Which websites did I visit?')">Browsing</button>
         </div>
-      </div>
-    </div>
-
-    <div class="results" id="results">
-      <div class="empty">
-        <div class="big">🔍</div>
-        <p>Ask anything about your screen activity. Cortex will search your knowledge graph and synthesize an answer.</p>
+        <button class="ask-btn" id="askBtn" onclick="ask()">
+          <div class="arc-spinner"></div>
+          <span class="btn-label">Ask &nbsp;⌘↵</span>
+        </button>
       </div>
     </div>
   </div>
 
-  <div class="sidebar">
-    <div class="sidebar-section">
-      <h2>Knowledge Graph</h2>
-      <div id="statsContent">
-        <div class="stat-row"><span class="lbl">Loading…</span></div>
-      </div>
+  <!-- Active -->
+  <div id="active-view">
+    <div class="topbar">
+      <button class="back-btn" onclick="resetView()">← New query</button>
+      <span class="topbar-q" id="topbarQ"></span>
     </div>
-    <div class="sidebar-section" style="padding-bottom:0;border-bottom:none">
-      <h2>Top Entities</h2>
+    <div class="answer-scroll" id="answerScroll">
+      <!-- content rendered here -->
     </div>
-    <div class="entities" id="entitiesContent"></div>
   </div>
 
-</div>
+</main>
 
 <script>
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function setQ(q) {
   document.getElementById('q').value = q;
   document.getElementById('q').focus();
 }
 
-function esc(s) {
-  return String(s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+function resetView() {
+  document.getElementById('idle-view').style.display = '';
+  document.getElementById('active-view').classList.remove('visible');
+  document.getElementById('askBtn').classList.remove('loading');
+  document.getElementById('askBtn').disabled = false;
+  document.getElementById('q').focus();
 }
 
+/* ── Colour map for entity types ────────────────────────────────────────── */
+const TYPE_COLOURS = {
+  COMMAND:     ['#6366f1','#1a1d40'],
+  URL:         ['#22d3ee','#0a2030'],
+  FILE:        ['#fbbf24','#2a1e00'],
+  DIRECTORY:   ['#fbbf24','#2a1e00'],
+  ERROR_MSG:   ['#fb7185','#2a0f14'],
+  TECHNOLOGY:  ['#34d399','#0a2018'],
+  CONCEPT:     ['#a78bfa','#1a1030'],
+  PROJECT:     ['#34d399','#0a2018'],
+  PERSON:      ['#f472b6','#2a1020'],
+  DECISION:    ['#22d3ee','#0a2030'],
+  DOMAIN:      ['#94a3b8','#141820'],
+  ISSUE:       ['#fb7185','#2a0f14'],
+};
+function typeStyle(t) {
+  const [c, bg] = TYPE_COLOURS[t] || ['#818cf8','#141830'];
+  return `color:${c}; background:${bg}; border-color:${c}40;`;
+}
+
+/* ── marked config ──────────────────────────────────────────────────────── */
+marked.setOptions({ gfm: true, breaks: true });
+
+/* ── Main ask ───────────────────────────────────────────────────────────── */
 async function ask() {
   const q = document.getElementById('q').value.trim();
   if (!q) return;
 
-  const btn = document.getElementById('askBtn');
-  const results = document.getElementById('results');
-
+  const btn  = document.getElementById('askBtn');
   btn.classList.add('loading');
   btn.disabled = true;
 
-  const t0 = Date.now();
+  /* Switch to active view */
+  document.getElementById('idle-view').style.display = 'none';
+  const activeView = document.getElementById('active-view');
+  activeView.classList.add('visible');
+  document.getElementById('topbarQ').innerHTML = `<strong>${esc(q)}</strong>`;
 
-  results.innerHTML = `
-    <div class="status">
-      <div class="dot-spin"><span></span><span></span><span></span></div>
-      <span id="statusTxt">Generating SQL queries…</span>
+  /* Loading state */
+  const scroll = document.getElementById('answerScroll');
+  const tags = ['COMMAND','URL','FILE','ERROR','CONCEPT','DECISION','TECHNOLOGY'];
+  scroll.innerHTML = `
+    <div class="loading-card">
+      <div class="ring-spinner"></div>
+      <div class="loading-text" id="loadTxt">Searching memory graph…</div>
+      <div class="loading-sub">Tracing sessions · Extracting decisions</div>
+      <div class="node-cloud">
+        ${tags.map((t,i)=>`<span class="node-tag" style="${typeStyle(t)} animation-delay:${i*80}ms">${t}</span>`).join('')}
+      </div>
     </div>`;
 
-  // Swap status text after 3s
-  setTimeout(() => {
-    const el = document.getElementById('statusTxt');
-    if (el) el.textContent = 'Running queries & synthesizing answer…';
-  }, 3000);
+  setTimeout(()=>{ const el=document.getElementById('loadTxt'); if(el) el.textContent='Running queries & synthesising answer…'; }, 3000);
 
   try {
-    const r = await fetch('/api/query', {
+    const t0 = Date.now();
+    const r  = await fetch('/api/query', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({question: q})
     });
 
     if (!r.ok) {
-      const err = await r.text();
-      results.innerHTML = `<div class="error-card">⚠ ${esc(err)}</div>`;
+      scroll.innerHTML = `<div class="error-box">⚠ ${esc(await r.text())}</div>`;
       return;
     }
 
     const d = await r.json();
-    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-    const sqlHtml = (d.sql_queries || []).map((s, i) =>
-      `<pre>-- Query ${i+1}\n${esc(s)}</pre>`
-    ).join('');
+    renderAnswer(scroll, q, d, Date.now()-t0);
 
-    results.innerHTML = `
-      <div class="answer-card">
-        <div class="answer-header">
-          <span class="icon">✦</span>
-          <span class="title">Answer</span>
-          <span class="meta">${esc(elapsed)}s · ${d.result_count} rows · ${(d.sql_queries||[]).length} queries</span>
-        </div>
-        <div class="answer-body">${esc(d.answer)}</div>
-        ${sqlHtml ? `
-        <button class="sql-toggle-btn" onclick="toggleSql(this)">
-          ▶ Show SQL queries
-        </button>
-        <div class="sql-block">${sqlHtml}</div>` : ''}
-      </div>`;
   } catch(e) {
-    results.innerHTML = `<div class="error-card">⚠ Request failed: ${esc(e.message)}</div>`;
+    scroll.innerHTML = `<div class="error-box">⚠ Request failed: ${esc(e.message)}</div>`;
   } finally {
     btn.classList.remove('loading');
     btn.disabled = false;
   }
 }
 
-function toggleSql(btn) {
-  const block = btn.nextElementSibling;
-  const open = block.classList.toggle('open');
-  btn.textContent = (open ? '▼' : '▶') + ' Show SQL queries';
+/* ── Render answer ──────────────────────────────────────────────────────── */
+function renderAnswer(scroll, q, d, ms) {
+  const secs    = (ms/1000).toFixed(1);
+  const sqlCount = (d.sql_queries||[]).length;
+
+  /* Source pills — derive from SQL queries */
+  const sources = deriveSources(d.sql_queries||[]);
+  const sourcesHtml = sources.length ? `
+    <div class="sources-row">
+      <span class="source-label">Sources</span>
+      ${sources.map(s=>`<span class="source-pill" style="color:${s.c};border-color:${s.c}40;background:${s.bg}">
+        ${s.icon} ${esc(s.label)}
+      </span>`).join('')}
+    </div>` : '';
+
+  /* SQL block */
+  const sqlHtml = sqlCount ? `
+    <div class="sql-toggle">
+      <button class="sql-toggle-btn" onclick="toggleSql(this)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        ${sqlCount} SQL quer${sqlCount===1?'y':'ies'} · ${d.result_count} rows · ${secs}s
+      </button>
+      <div class="sql-body" id="sqlBody">
+        ${(d.sql_queries||[]).map((s,i)=>`<pre>-- query ${i+1}\n${esc(s)}</pre>`).join('')}
+      </div>
+    </div>` : '';
+
+  scroll.innerHTML = `
+    <div class="answer-card">
+      <div class="answer-meta">
+        <span class="meta-chip accent">✦ Answer</span>
+        <span class="meta-chip">${secs}s</span>
+        <span class="meta-chip">${d.result_count} rows</span>
+      </div>
+      ${sourcesHtml}
+      <div class="md-body">${marked.parse(d.answer||'')}</div>
+      ${sqlHtml}
+    </div>`;
 }
 
-document.getElementById('q').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask();
+/* ── Source derivation ──────────────────────────────────────────────────── */
+function deriveSources(queries) {
+  const sources = [];
+  for (const sql of queries) {
+    const up = sql.toUpperCase();
+    if (up.includes("RELATION='RAN'") || up.includes('RELATION =\'RAN\''))
+      sources.push({label:'Commands', icon:'$', c:'#22d3ee', bg:'#0a2030'});
+    else if (up.includes("RELATION='VISITED'"))
+      sources.push({label:'Browsing', icon:'↗', c:'#a78bfa', bg:'#1a1030'});
+    else if (up.includes('KG_NODES') || up.includes('KG_EDGES'))
+      sources.push({label:'Knowledge graph', icon:'◈', c:'#818cf8', bg:'#141830'});
+    else if (up.includes('FRAMES'))
+      sources.push({label:'Screen activity', icon:'◻', c:'#34d399', bg:'#0a2018'});
+  }
+  /* deduplicate */
+  return sources.filter((s,i,a)=>a.findIndex(x=>x.label===s.label)===i).slice(0,4);
+}
+
+function toggleSql(btn) {
+  const body = document.getElementById('sqlBody');
+  const open = body.classList.toggle('open');
+  btn.querySelector('svg').style.transform = open ? 'rotate(180deg)' : '';
+}
+
+/* ── Keyboard shortcut ──────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key==='Enter') ask();
 });
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
+/* ── Stats ──────────────────────────────────────────────────────────────── */
+const BAR_COLOURS = {
+  nodes: '#6366f1', edges: '#a78bfa', frames: '#34d399', sessions: '#22d3ee'
+};
+
 async function loadStats() {
   try {
     const r = await fetch('/api/stats');
     if (!r.ok) return;
     const d = await r.json();
 
-    document.getElementById('frameCount').textContent = `${d.total_frames.toLocaleString()} frames`;
-    document.getElementById('statsContent').innerHTML = [
-      {l: 'Nodes',   v: d.total_nodes.toLocaleString()},
-      {l: 'Edges',   v: d.total_edges.toLocaleString()},
-      {l: 'Frames',  v: d.total_frames.toLocaleString()},
-      {l: 'Sessions',v: d.total_sessions.toLocaleString()},
-    ].map(s => `<div class="stat-row"><span class="lbl">${s.l}</span><span class="val">${s.v}</span></div>`).join('');
-
-    document.getElementById('entitiesContent').innerHTML = (d.top_entities || []).map(e => `
-      <div class="entity-item">
-        <span class="etype" title="${esc(e.node_type)}">${esc(e.node_type)}</span>
-        <span class="evalue" title="${esc(e.value)}">${esc(e.value.length > 30 ? e.value.slice(0,30)+'…' : e.value)}</span>
-        <span class="ecount">${e.count}</span>
+    const maxVal = Math.max(d.total_nodes, d.total_edges, d.total_frames, 1);
+    const rows = [
+      {k:'nodes',    l:'Nodes',    v:d.total_nodes},
+      {k:'edges',    l:'Edges',    v:d.total_edges},
+      {k:'frames',   l:'Frames',   v:d.total_frames},
+      {k:'sessions', l:'Sessions', v:d.total_sessions},
+    ];
+    document.getElementById('statsContent').innerHTML = rows.map(r=>`
+      <div class="stat-row">
+        <span class="lbl">${r.l}</span>
+        <span class="val">${r.v.toLocaleString()}</span>
+      </div>
+      <div class="stat-bar">
+        <div class="stat-bar-fill" style="width:${Math.round(r.v/maxVal*100)}%;background:${BAR_COLOURS[r.k]}"></div>
       </div>`).join('');
-  } catch(e) { console.error('stats:', e); }
+
+    document.getElementById('entitiesContent').innerHTML = (d.top_entities||[]).map(e=>`
+      <div class="entity-row">
+        <span class="etag" style="${typeStyle(e.node_type)}">${esc(e.node_type)}</span>
+        <span class="eval" title="${esc(e.value)}">${esc(e.value.length>28?e.value.slice(0,28)+'…':e.value)}</span>
+        <span class="ecnt">${e.count}</span>
+      </div>`).join('');
+  } catch(e) { console.error(e); }
 }
 
 loadStats();
